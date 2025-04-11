@@ -64,31 +64,31 @@ async function handleMessage(from, text) {
     case 0:
       if (text.includes('hola')) {
         user.step = 1;
-        return '👋 ¡Bienvenido! Por favor, decime tu *Nombre* y *Lote* (ej: Juan Pérez Lote 123)';
+        return '👋 ¡Bienvenido a Villanueva Padel! 🎾🎾🎾\n\n👉 Por favor, ingresá tu *Nombre* y *Lote* en este formato:\n\n*Juan Pérez Lote 123*';
       }
       break;
 
     case 1:
-      const parts = text.split(' ');
+      const parts = text.trim().split(' ');
       user.responses.name = parts.slice(0, parts.length - 2).join(' ');
       user.responses.lot = parts.slice(-2).join(' ');
       user.step = 2;
-      return '🏓 ¿En qué cancha vas a jugar? Responde con *1*, *2* o *3*';
+      return '🥳  Ahora Ingresa en qué cancha vas a jugar. Responde con *1*, *2* o *3*';
 
     case 2:
       if (['1', '2', '3'].includes(text)) {
         user.responses.court = text;
         user.step = 3;
-        return '👥 ¿Tenés invitados sin carnet? Responde *SI* o *NO*';
+        return '⚠️ ¿Tenés invitados sin carnet para declarar?  👥👥 Responde *SI* o *NO*';
       } else {
-        return '⚠️ Por favor ingresá *1*, *2* o *3*';
+        return '👥 ¿Cuántos invitados sin Carnet tenes ❓❓❓ Responde con *1*, *2* o *3*';
       }
 
     case 3:
       if (text === 'si' || text === 'sí') {
         user.responses.hasGuests = true;
         user.step = 4;
-        return '🔢 ¿Cuántos invitados? (1, 2 o 3)';
+        return '👥 ¿Cuántos invitados sin Carnet tenes ❓❓❓ Responde con *1*, *2* o *3*';
       } else if (text === 'no') {
         user.responses.hasGuests = false;
         const resumen = generateSummary(user.responses);
@@ -103,7 +103,7 @@ async function handleMessage(from, text) {
         user.responses.guestCount = parseInt(text);
         user.responses.guests = [];
         user.step = 5;
-        return '👤 Ingresá el nombre y lote del invitado 1';
+        return '🙋🏼  Ingresá el nombre y lote del invitado 1';
       } else {
         return '⚠️ Indicá *1*, *2* o *3*';
       }
@@ -125,19 +125,27 @@ async function handleMessage(from, text) {
 }
 
 function generateSummary(data) {
-  let resumen = `🎾 *Detalle de la Reserva*\n\n👤 Nombre y Lote: *${data.name} ${data.lot}*\n🏓 Cancha: *${data.court}*\n`;
+  let resumen = `🎾 *Detalle de la Reserva*🎾\n\n👤 Nombre y Lote: *${data.name} ${data.lot}*\n🏓 Cancha Reservada: *${data.court}*\n`;
   if (data.hasGuests) {
     resumen += `👥 Invitados: *${data.guestCount}*\n`;
-    data.guests.forEach((g, i) => resumen += `👥 Invitado ${i + 1}: ${g}\n`);
+    data.guests.forEach((g, i) => resumen += `👥 Cantidad de Invitados ${i + 1}: ${g}\n`);
   } else {
     resumen += `👥 Invitados: *No*`;
   }
 
-  resumen += `\n🎾🎾🎾 Gracias por la info ❤️ ¡Todo listo para jugar!\nNo olvides hacer tu reserva en Padelink.`;
+  resumen += `\n🎾🎾🎾🎾🎾🎾🎾🎾🎾🎾🎾🎾
+Gracias por la info!!! ❤️ Todo listo! Ahora podés comenzar a jugar‼️.
+
+* 🤔 Recordá, si todavía no pasaste, que si querés abonar en efectivo podés acercarte a la oficina y hacerlo. De lo contrario te lo podemos cargar por expensas! 📩
+
+* Este sistema NO REEMPLAZA a la reserva por PADELINK, si no la hiciste, hacela así nadie te pide la cancha 😡 mientras estés jugando 🏓.
+
+Gracias por elegirnos 😍😍!! Disfruten el partido!!!`;
 
   return resumen;
 }
 
+// Servidor Express para verificar estado
 app.get('/', (req, res) => {
   res.send('✅ Bot de WhatsApp activo');
 });
@@ -146,4 +154,5 @@ app.listen(port, () => {
   console.log(`🌐 Servidor web corriendo en puerto ${port}`);
 });
 
+// Conectar a WhatsApp
 connectToWhatsApp();
