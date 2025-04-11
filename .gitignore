@@ -1,10 +1,14 @@
 # Node.js
 node_modules/
-
+firebase-credentials.json
 # Logs
 logs
 *.log
 npm-debug.log*
+
+# Archivos de sesión
+.session/
+.wwebjs_auth/
 
 # Directorios de dependencias de producción
 package-lock.json

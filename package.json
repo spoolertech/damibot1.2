@@ -4,12 +4,12 @@
     "description": "Bot de WhatsApp",
     "main": "bot.js",
     "scripts": {
-      "start": "node bot.js"
+        "start": "node bot.js"
     },
     "dependencies": {
-      "express": "^4.17.1",
-      "qrcode": "^1.4.4",
-      "whatsapp-web.js": "^1.16.1"
+        "express": "^4.21.2",
+        "firebase-admin": "^13.2.0",
+        "qrcode": "^1.5.4",
+        "whatsapp-web.js": "^1.27.0"
     }
-  }
-  
+}
