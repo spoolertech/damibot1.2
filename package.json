@@ -1,17 +1,15 @@
 {
-    "name": "damibot24",
+    "name": "damibot1.2",
     "version": "1.0.0",
+    "description": "Bot de WhatsApp",
     "main": "bot.js",
-    "type": "commonjs",
     "scripts": {
-        "start": "node bot.js"
+      "start": "node bot.js"
     },
     "dependencies": {
-        "express": "^4.21.2",
-        "qrcode": "^1.5.4",
-        "whatsapp-web.js": "^1.27.0"
-    },
-    "engines": {
-        "node": "16.x"
+      "express": "^4.17.1",
+      "qrcode": "^1.4.4",
+      "whatsapp-web.js": "^1.16.1"
     }
-}
+  }
+  

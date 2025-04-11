@@ -1,4 +1,4 @@
-const { Client } = require('whatsapp-web.js');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
 const qrcode = require('qrcode');
 
@@ -8,8 +8,9 @@ let qrCodeData = null;
 // Estado de usuarios
 let userStates = {};
 
-// Iniciar cliente WhatsApp
+// Iniciar cliente WhatsApp con LocalAuth para persistencia de sesión
 const client = new Client({
+  authStrategy: new LocalAuth(),
   puppeteer: {
     args: ['--no-sandbox'],
   },
@@ -144,8 +145,11 @@ app.get('/', async (req, res) => {
 });
 
 // Iniciar servidor
-app.listen(3000, () => {
-  console.log('🌐 Servidor Express en http://localhost:3000');
+const port = process.env.PORT || 3000;  // Usa el puerto de la variable de entorno o 3000 por defecto
+
+app.listen(port, () => {
+  console.log(`🌐 Servidor Express en http://localhost:${port}`);
 });
+
 
 client.initialize();
