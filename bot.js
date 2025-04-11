@@ -2,6 +2,7 @@ const { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, Disconne
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 const fs = require('fs');
+const db = require('./firebase'); // ✅ Firebase importado
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -55,7 +56,7 @@ async function connectToWhatsApp() {
 // Flujo de conversación (simplificado)
 async function handleMessage(from, text) {
   if (!userStates[from]) {
-    userStates[from] = { step: 0, responses: {} };
+    userStates[from] = { step: 0, responses: {}, attempts: {} };  // Agregamos "attempts" para contar intentos
   }
 
   const user = userStates[from];
@@ -81,7 +82,18 @@ async function handleMessage(from, text) {
         user.step = 3;
         return '⚠️ ¿Tenés invitados sin carnet para declarar?  👥👥 Responde *SI* o *NO*';
       } else {
-        return '👥 ¿Cuántos invitados sin Carnet tenes ❓❓❓ Responde con *1*, *2* o *3*';
+        // Incrementamos el contador de intentos
+        user.attempts.court = (user.attempts.court || 0) + 1;
+
+        if (user.attempts.court < 2) {
+          // Si el número de intentos es menor que 2, avisamos que debe intentar de nuevo
+          return '❌ Opción inválida. Por favor ingresa *1*, *2* o *3*. Intento ' + (user.attempts.court + 1) + ' de 2.';
+        } else {
+          // Si ya intentó 2 veces y sigue fallando, reiniciamos el flujo
+          user.step = 0;  // Reiniciamos el flujo
+          user.attempts = {};  // Reseteamos los intentos
+          return '⚠️ Has superado el límite de intentos. El proceso se reiniciará desde el comienzo. Escribí *hola* para empezar de nuevo.';
+        }
       }
 
     case 3:
@@ -126,9 +138,12 @@ async function handleMessage(from, text) {
 
 function generateSummary(data) {
   let resumen = `🎾 *Detalle de la Reserva*🎾\n\n👤 Nombre y Lote: *${data.name} ${data.lot}*\n🏓 Cancha Reservada: *${data.court}*\n`;
+
   if (data.hasGuests) {
     resumen += `👥 Invitados: *${data.guestCount}*\n`;
-    data.guests.forEach((g, i) => resumen += `👥 Cantidad de Invitados ${i + 1}: ${g}\n`);
+    data.guests.forEach((g, i) => {
+      resumen += `👥 Cantidad de Invitados ${i + 1}: ${g}\n`;
+    });
   } else {
     resumen += `👥 Invitados: *No*`;
   }
@@ -141,6 +156,21 @@ Gracias por la info!!! ❤️ Todo listo! Ahora podés comenzar a jugar‼️.
 * Este sistema NO REEMPLAZA a la reserva por PADELINK, si no la hiciste, hacela así nadie te pide la cancha 😡 mientras estés jugando 🏓.
 
 Gracias por elegirnos 😍😍!! Disfruten el partido!!!`;
+
+  // 🔥 Subida a Firebase
+  const ref = db.ref('reservas').push();
+  ref.set({
+    nombre: data.name,
+    lote: data.lot,
+    cancha: data.court,
+    invitados: data.hasGuests ? data.guests : [],
+    cantidad_invitados: data.guestCount || 0,
+    timestamp: new Date().toISOString()
+  }).then(() => {
+    console.log('✅ Reserva subida a Firebase');
+  }).catch((err) => {
+    console.error('❌ Error al subir a Firebase:', err);
+  });
 
   return resumen;
 }
