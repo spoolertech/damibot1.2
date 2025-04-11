@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client } = require('whatsapp-web.js');
 const express = require('express');
 const qrcode = require('qrcode');
 
@@ -8,9 +8,8 @@ let qrCodeData = null;
 // Estado de usuarios
 let userStates = {};
 
-// Iniciar cliente WhatsApp con LocalAuth para persistencia de sesión
+// Iniciar cliente WhatsApp
 const client = new Client({
-  authStrategy: new LocalAuth(),
   puppeteer: {
     args: ['--no-sandbox'],
   },
@@ -26,84 +25,90 @@ client.on('qr', (qr) => {
 client.on('ready', () => {
   console.log('✅ Cliente conectado a WhatsApp');
   qrCodeData = null;
+  console.log('Bot listo para recibir mensajes.'); // Asegúrate de ver este log
 });
 
 // Lógica de mensajes
 client.on('message', async (msg) => {
-  const from = msg.from;
-  const text = msg.body.trim().toLowerCase();
+  try {
+    console.log(`Mensaje recibido de ${msg.from}: ${msg.body}`); // Log para ver los mensajes que el bot recibe
+    const from = msg.from;
+    const text = msg.body.trim().toLowerCase();
 
-  if (!userStates[from]) {
-    userStates[from] = { step: 0, responses: {} };
-  }
+    if (!userStates[from]) {
+      userStates[from] = { step: 0, responses: {} };
+    }
 
-  const user = userStates[from];
+    const user = userStates[from];
 
-  switch (user.step) {
-    case 0:
-      if (text.includes('hola')) {
-        msg.reply('👋 ¡Bienvenido a Villanueva Padel!\n\n👉 Por favor, ingresá tu *Nombre* y *Lote* en este formato:\n\n*Juan Pérez Lote 123*');
-        user.step = 1;
-      }
-      break;
+    switch (user.step) {
+      case 0:
+        if (text.includes('hola')) {
+          msg.reply('👋 ¡Bienvenido a Villanueva Padel!\n\n👉 Por favor, ingresá tu *Nombre* y *Lote* en este formato:\n\n*Juan Pérez Lote 123*');
+          user.step = 1;
+        }
+        break;
 
-    case 1:
-      const parts = msg.body.split(' ');
-      user.responses.name = parts.slice(0, parts.length - 2).join(' ');
-      user.responses.lot = parts.slice(-2).join(' ');
-      msg.reply('🏓 ¿En qué cancha vas a jugar? Responde con *1*, *2* o *3*');
-      user.step = 2;
-      break;
+      case 1:
+        const parts = msg.body.split(' ');
+        user.responses.name = parts.slice(0, parts.length - 2).join(' ');
+        user.responses.lot = parts.slice(-2).join(' ');
+        msg.reply('🏓 ¿En qué cancha vas a jugar? Responde con *1*, *2* o *3*');
+        user.step = 2;
+        break;
 
-    case 2:
-      if (['1', '2', '3'].includes(text)) {
-        user.responses.court = text;
-        msg.reply('👥 ¿Tenés invitados sin carnet? Responde *SI* o *NO*');
-        user.step = 3;
-      } else {
-        msg.reply('⚠️ Por favor ingresá *1*, *2* o *3*.');
-      }
-      break;
+      case 2:
+        if (['1', '2', '3'].includes(text)) {
+          user.responses.court = text;
+          msg.reply('👥 ¿Tenés invitados sin carnet? Responde *SI* o *NO*');
+          user.step = 3;
+        } else {
+          msg.reply('⚠️ Por favor ingresá *1*, *2* o *3*.');
+        }
+        break;
 
-    case 3:
-      if (text === 'si' || text === 'sí') {
-        user.responses.hasGuests = true;
-        msg.reply('🔢 ¿Cuántos invitados? (1, 2 o 3)');
-        user.step = 4;
-      } else if (text === 'no') {
-        user.responses.hasGuests = false;
-        sendSummary(msg, user.responses);
-        userStates[from] = null;
-      } else {
-        msg.reply('⚠️ Por favor respondé *SI* o *NO*.');
-      }
-      break;
+      case 3:
+        if (text === 'si' || text === 'sí') {
+          user.responses.hasGuests = true;
+          msg.reply('🔢 ¿Cuántos invitados? (1, 2 o 3)');
+          user.step = 4;
+        } else if (text === 'no') {
+          user.responses.hasGuests = false;
+          sendSummary(msg, user.responses);
+          userStates[from] = null;
+        } else {
+          msg.reply('⚠️ Por favor respondé *SI* o *NO*.');
+        }
+        break;
 
-    case 4:
-      if (['1', '2', '3'].includes(text)) {
-        user.responses.guestCount = parseInt(text);
-        user.responses.guests = [];
-        msg.reply('👤 Ingresá el nombre y lote del invitado 1 (Ej: Ana Gómez Lote 456)');
-        user.step = 5;
-      } else {
-        msg.reply('⚠️ Por favor indicá *1*, *2* o *3*.');
-      }
-      break;
+      case 4:
+        if (['1', '2', '3'].includes(text)) {
+          user.responses.guestCount = parseInt(text);
+          user.responses.guests = [];
+          msg.reply('👤 Ingresá el nombre y lote del invitado 1 (Ej: Ana Gómez Lote 456)');
+          user.step = 5;
+        } else {
+          msg.reply('⚠️ Por favor indicá *1*, *2* o *3*.');
+        }
+        break;
 
-    case 5:
-      user.responses.guests.push(msg.body);
-      if (user.responses.guests.length < user.responses.guestCount) {
-        msg.reply(`👤 Ingresá el nombre y lote del invitado ${user.responses.guests.length + 1}`);
-      } else {
-        sendSummary(msg, user.responses);
-        userStates[from] = null;
-      }
-      break;
+      case 5:
+        user.responses.guests.push(msg.body);
+        if (user.responses.guests.length < user.responses.guestCount) {
+          msg.reply(`👤 Ingresá el nombre y lote del invitado ${user.responses.guests.length + 1}`);
+        } else {
+          sendSummary(msg, user.responses);
+          userStates[from] = null;
+        }
+        break;
 
-    default:
-      msg.reply('🧐 No entendí eso. Escribí *hola* para comenzar.');
-      user.step = 0;
-      break;
+      default:
+        msg.reply('🧐 No entendí eso. Escribí *hola* para comenzar.');
+        user.step = 0;
+        break;
+    }
+  } catch (error) {
+    console.error('Error en el procesamiento del mensaje:', error); // Captura errores
   }
 });
 
@@ -135,6 +140,8 @@ function sendSummary(msg, data) {
 }
 
 // Servidor Express
+const PORT = process.env.PORT || 3000; // Usa el puerto dinámico de Render
+
 app.get('/', async (req, res) => {
   if (qrCodeData) {
     const qrImage = await qrcode.toDataURL(qrCodeData);
@@ -145,11 +152,8 @@ app.get('/', async (req, res) => {
 });
 
 // Iniciar servidor
-const port = process.env.PORT || 3000;  // Usa el puerto de la variable de entorno o 3000 por defecto
-
-app.listen(port, () => {
-  console.log(`🌐 Servidor Express en http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🌐 Servidor Express en http://localhost:${PORT}`);
 });
-
 
 client.initialize();
