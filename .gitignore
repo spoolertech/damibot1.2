@@ -1,0 +1,23 @@
+# Node.js
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Directorios de dependencias de producción
+package-lock.json
+yarn.lock
+
+# Archivos de configuración de entorno
+.env
+
+# Archivos de compilación
+dist/
+build/
+
+# Otros archivos temporales que no necesitas
+*.DS_Store
+*.swp
+*.txt
