@@ -1,20 +1,21 @@
 const { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
+const qrcodeWeb = require('qrcode');
 const express = require('express');
 const fs = require('fs');
-const db = require('./firebase'); // ✅ Firebase importado
+const axios = require('axios');
+const db = require('./firebase');
 
 const app = express();
 const port = process.env.PORT || 3000;
+let lastGeneratedQR = null;
 
-// Estado del usuario
 let userStates = {};
 
-// Inicializamos la sesión
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState('baileys_auth');
-
   const { version } = await fetchLatestBaileysVersion();
+
   const sock = makeWASocket({
     version,
     auth: state,
@@ -24,7 +25,12 @@ async function connectToWhatsApp() {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      lastGeneratedQR = qr;
+    }
+
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode;
       if (reason !== DisconnectReason.loggedOut) {
@@ -45,7 +51,6 @@ async function connectToWhatsApp() {
     const from = msg.key.remoteJid;
     const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
 
-    // Lógica de conversación similar a tu flujo anterior
     const response = await handleMessage(from, text.trim().toLowerCase());
     if (response) {
       await sock.sendMessage(from, { text: response });
@@ -53,10 +58,9 @@ async function connectToWhatsApp() {
   });
 }
 
-// Flujo de conversación (simplificado)
 async function handleMessage(from, text) {
   if (!userStates[from]) {
-    userStates[from] = { step: 0, responses: {}, attempts: {} };  // Agregamos "attempts" para contar intentos
+    userStates[from] = { step: 0, responses: {}, attempts: {} };
   }
 
   const user = userStates[from];
@@ -82,16 +86,12 @@ async function handleMessage(from, text) {
         user.step = 3;
         return '⚠️ ¿Tenés invitados sin carnet para declarar?  👥👥 Responde *SI* o *NO*';
       } else {
-        // Incrementamos el contador de intentos
         user.attempts.court = (user.attempts.court || 0) + 1;
-
         if (user.attempts.court < 2) {
-          // Si el número de intentos es menor que 2, avisamos que debe intentar de nuevo
           return '❌ Opción inválida. Por favor ingresa *1*, *2* o *3*. Intento ' + (user.attempts.court + 1) + ' de 2.';
         } else {
-          // Si ya intentó 2 veces y sigue fallando, reiniciamos el flujo
-          user.step = 0;  // Reiniciamos el flujo
-          user.attempts = {};  // Reseteamos los intentos
+          user.step = 0;
+          user.attempts = {};
           return '⚠️ Has superado el límite de intentos. El proceso se reiniciará desde el comienzo. Escribí *hola* para empezar de nuevo.';
         }
       }
@@ -157,9 +157,7 @@ Gracias por la info!!! ❤️ Todo listo! Ahora podés comenzar a jugar‼️.
 
 Gracias por elegirnos 😍😍!! Disfruten el partido!!!`;
 
-  // 🔥 Subida a Firebase
-  const ref = db.ref('reservas').push();
-  ref.set({
+  db.ref('reservas').push({
     nombre: data.name,
     lote: data.lot,
     cancha: data.court,
@@ -175,14 +173,37 @@ Gracias por elegirnos 😍😍!! Disfruten el partido!!!`;
   return resumen;
 }
 
-// Servidor Express para verificar estado
 app.get('/', (req, res) => {
   res.send('✅ Bot de WhatsApp activo');
+});
+
+app.get('/qr', async (req, res) => {
+  if (!lastGeneratedQR) {
+    return res.status(404).send('QR no disponible todavía.');
+  }
+
+  const qrDataUrl = await qrcodeWeb.toDataURL(lastGeneratedQR);
+  res.send(`
+    <html>
+      <head><title>QR de WhatsApp</title></head>
+      <body>
+        <h1>Escaneá el QR para vincular WhatsApp</h1>
+        <img src="${qrDataUrl}" />
+      </body>
+    </html>
+  `);
 });
 
 app.listen(port, () => {
   console.log(`🌐 Servidor web corriendo en puerto ${port}`);
 });
 
-// Conectar a WhatsApp
 connectToWhatsApp();
+
+const keepAliveUrl = 'https://b3bb658c-3da2-4442-a567-e891c2d634a1-00-hjjwslmg8fdu.kirk.replit.dev/'; // 
+
+setInterval(() => {
+  axios.get(keepAliveUrl)
+    .then(() => console.log('✅ Ping de keep-alive enviado'))
+    .catch(err => console.error('❌ Error en el ping de keep-alive:', err.message));
+}, 1000 * 60 * 5);
